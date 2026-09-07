@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chazan Tracker</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #f4f4f2;
+    color: #1a1a1a;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 20px 16px 60px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0 0 20px;
+    text-align: center;
+  }
+  h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 24px 0 10px;
+  }
+  .card {
+    background: #ffffff;
+    border: 1px solid #e0e0dd;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 16px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 6px;
+  }
+  input[type="date"], select, textarea {
+    width: 100%;
+    padding: 10px;
+    font-size: 15px;
+    border: 1px solid #d5d5d2;
+    border-radius: 8px;
+    background: #fafaf9;
+    color: #1a1a1a;
+    margin-bottom: 12px;
+  }
+  textarea { resize: vertical; font-family: inherit; }
+  button {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    background: #1a1a1a;
+    color: #fff;
+    cursor: pointer;
+  }
+  button:active { opacity: 0.8; }
+  button.secondary {
+    background: transparent;
+    color: #1a1a1a;
+    border: 1px solid #d5d5d2;
+    font-weight: 500;
+  }
+  .prayer-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .prayer-row label {
+    width: 80px;
+    margin: 0;
+    font-size: 14px;
+    color: #444;
+  }
+  .prayer-row select { margin-bottom: 0; }
+  .save-msg {
+    font-size: 13px;
+    color: #0f7b3d;
+    margin-top: 8px;
+    display: none;
+  }
+  .error-msg {
+    font-size: 13px;
+    color: #c0392b;
+    margin-top: -6px;
+    margin-bottom: 10px;
+    display: none;
+  }
+  .totals-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .totals-header button {
+    width: auto;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    border: 1px solid #e0e0dd;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: #fff;
+  }
+  .total-row .name { font-size: 14px; flex: 1; }
+  .total-row .stats { text-align: right; margin-right: 10px; }
+  .total-row .count { font-weight: 600; font-size: 15px; display: block; }
+  .total-row .lifetime { font-size: 11px; color: #888; display: block; margin-top: 2px; }
+  .total-row .pay-btn {
+    width: auto;
+    padding: 6px 10px;
+    font-size: 12px;
+    background: #0f7b3d;
+  }
+  .total-row .pay-btn:disabled {
+    background: #ccc;
+    cursor: default;
+  }
+  .hint {
+    font-size: 12px;
+    color: #888;
+    margin: -6px 0 10px;
+  }
+  .clear-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .clear-bar .danger-btn {
+    flex: 1;
+    width: auto;
+    padding: 8px 4px;
+    font-size: 12px;
+    font-weight: 500;
+    background: #fff;
+    color: #c0392b;
+    border: 1px solid #e0b4ae;
+    border-radius: 8px;
+  }
+  .clear-bar .danger-btn:active {
+    background: #fdecea;
+  }
+</style>
+</head>
+<body>
+
+<h1>Chazan Tracker</h1>
+
+<div id="setup" style="display:none;">
+  <div class="card">
+    <label for="names-input">Enter names, separated by periods, backslashes, commas, or new lines</label>
+    <textarea id="names-input" rows="6" placeholder="Hershel\Sholom\Yehuda"></textarea>
+    <div class="error-msg" id="setup-error"></div>
+    <button id="save-names">Save names</button>
+  </div>
+</div>
+
+<div id="main" style="display:none;">
+  <div class="clear-bar">
+    <button class="danger-btn" id="clear-today">Clear today</button>
+    <button class="danger-btn" id="clear-history">Clear history</button>
+    <button class="danger-btn" id="clear-paid">Clear paid</button>
+  </div>
+
+  <div class="card">
+    <label for="date-input">Date</label>
+    <input type="date" id="date-input">
+    <div id="prayer-rows"></div>
+    <button id="save-log">Save</button>
+    <div class="save-msg" id="save-msg">Saved</div>
+  </div>
+
+  <div class="card">
+    <label for="rate-input">Dollar value per point</label>
+    <input type="number" id="rate-input" step="0.01" min="0" placeholder="e.g. 5">
+  </div>
+
+  <div class="totals-header">
+    <h2>Totals</h2>
+    <button class="secondary" id="edit-names">Edit names</button>
+  </div>
+  <div class="hint">Top number is what's currently owed. "Lifetime" is the total ever earned, even after paying out.</div>
+  <div id="totals-list"></div>
+</div>
+
+<script>
+const PRAYERS = ['Shacharit', 'Mincha', 'Maariv'];
+const PRAYER_WEIGHTS = { Shacharit: 1, Mincha: 0.5, Maariv: 0.25 };
+const NAMES_KEY = 'chazan_names';
+const LOG_KEY = 'chazan_log';
+const RATE_KEY = 'chazan_rate';
+const PAID_KEY = 'chazan_paid';
+
+let names = [];
+let log = {};
+let rate = 0;
+let paid = {};
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function loadData() {
+  try { names = JSON.parse(localStorage.getItem(NAMES_KEY) || '[]'); } catch (e) { names = []; }
+  try { log = JSON.parse(localStorage.getItem(LOG_KEY) || '{}'); } catch (e) { log = {}; }
+  try { rate = parseFloat(localStorage.getItem(RATE_KEY) || '0') || 0; } catch (e) { rate = 0; }
+  try { paid = JSON.parse(localStorage.getItem(PAID_KEY) || '{}'); } catch (e) { paid = {}; }
+}
+
+function saveNamesToStorage() {
+  localStorage.setItem(NAMES_KEY, JSON.stringify(names));
+}
+
+function saveLogToStorage() {
+  localStorage.setItem(LOG_KEY, JSON.stringify(log));
+}
+
+function saveRateToStorage() {
+  localStorage.setItem(RATE_KEY, String(rate));
+}
+
+function savePaidToStorage() {
+  localStorage.setItem(PAID_KEY, JSON.stringify(paid));
+}
+
+function showSetup() {
+  document.getElementById('setup').style.display = 'block';
+  document.getElementById('main').style.display = 'none';
+}
+
+function showMain() {
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('main').style.display = 'block';
+  document.getElementById('date-input').value = todayStr();
+  document.getElementById('rate-input').value = rate || '';
+  renderPrayerRows();
+  renderTotals();
+}
+
+function splitNames(raw) {
+  const parts = [];
+  let current = '';
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (ch === '.' || ch === '\\' || ch === ',' || ch === '\n' || ch === '\r') {
+      if (current.trim()) parts.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  if (current.trim()) parts.push(current.trim());
+  return parts;
+}
+
+function renderPrayerRows() {
+  const container = document.getElementById('prayer-rows');
+  container.innerHTML = '';
+  const dateKey = document.getElementById('date-input').value || todayStr();
+  const dayLog = log[dateKey] || {};
+  PRAYERS.forEach(p => {
+    const wrap = document.createElement('div');
+    wrap.className = 'prayer-row';
+
+    const label = document.createElement('label');
+    label.textContent = p + ' (' + PRAYER_WEIGHTS[p] + ')';
+
+    const select = document.createElement('select');
+    select.id = 'select-' + p;
+
+    const blankOpt = document.createElement('option');
+    blankOpt.value = '';
+    blankOpt.textContent = '-- select --';
+    select.appendChild(blankOpt);
+
+    names.forEach(n => {
+      const opt = document.createElement('option');
+      opt.value = n;
+      opt.textContent = n;
+      if (dayLog[p] === n) opt.selected = true;
+      select.appendChild(opt);
+    });
+
+    wrap.appendChild(label);
+    wrap.appendChild(select);
+    container.appendChild(wrap);
+  });
+}
+
+function computeTotals() {
+  const totals = {};
+  names.forEach(n => totals[n] = 0);
+  Object.values(log).forEach(day => {
+    PRAYERS.forEach(p => {
+      const person = day[p];
+      if (person && totals.hasOwnProperty(person)) totals[person] += PRAYER_WEIGHTS[p];
+    });
+  });
+  return totals;
+}
+
+function round2(x) {
+  return Math.round(x * 100) / 100;
+}
+
+function renderTotals() {
+  const totals = computeTotals();
+  const sorted = names.slice().sort((a, b) => totals[b] - totals[a]);
+  const container = document.getElementById('totals-list');
+  container.innerHTML = '';
+  sorted.forEach(n => {
+    const lifetimePoints = totals[n] || 0;
+    const paidPoints = paid[n] || 0;
+    const owedPoints = round2(lifetimePoints - paidPoints);
+    const owedDollars = round2(owedPoints * rate);
+    const lifetimeDollars = round2(lifetimePoints * rate);
+
+    const row = document.createElement('div');
+    row.className = 'total-row';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'name';
+    nameEl.textContent = n;
+
+    const stats = document.createElement('span');
+    stats.className = 'stats';
+
+    const countEl = document.createElement('span');
+    countEl.className = 'count';
+    countEl.textContent = rate > 0
+      ? ('$' + owedDollars.toFixed(2) + ' owed')
+      : (owedPoints + ' pts owed');
+
+    const lifetimeEl = document.createElement('span');
+    lifetimeEl.className = 'lifetime';
+    lifetimeEl.textContent = 'Lifetime: ' + lifetimePoints + ' pts' + (rate > 0 ? ' ($' + lifetimeDollars.toFixed(2) + ')' : '');
+
+    stats.appendChild(countEl);
+    stats.appendChild(lifetimeEl);
+
+    const payBtn = document.createElement('button');
+    payBtn.className = 'pay-btn';
+    payBtn.textContent = 'Paid';
+    payBtn.disabled = owedPoints <= 0;
+    payBtn.addEventListener('click', function () {
+      paid[n] = lifetimePoints;
+      savePaidToStorage();
+      renderTotals();
+    });
+
+    row.appendChild(nameEl);
+    row.appendChild(stats);
+    row.appendChild(payBtn);
+    container.appendChild(row);
+  });
+}
+
+function handleSaveNames() {
+  const raw = document.getElementById('names-input').value || '';
+  const list = splitNames(raw);
+  const errEl = document.getElementById('setup-error');
+  if (list.length === 0) {
+    errEl.textContent = 'Enter at least one name first.';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  names = list;
+  saveNamesToStorage();
+  showMain();
+}
+
+document.getElementById('save-names').addEventListener('click', handleSaveNames);
+
+document.getElementById('edit-names').addEventListener('click', function () {
+  document.getElementById('names-input').value = names.join('\\');
+  showSetup();
+});
+
+document.getElementById('date-input').addEventListener('change', renderPrayerRows);
+
+document.getElementById('rate-input').addEventListener('input', function () {
+  rate = parseFloat(this.value) || 0;
+  saveRateToStorage();
+  renderTotals();
+});
+
+function armDangerButton(btn, confirmLabel, onConfirm) {
+  const originalLabel = btn.textContent;
+  let armed = false;
+  let resetTimer = null;
+
+  btn.addEventListener('click', function () {
+    if (!armed) {
+      armed = true;
+      btn.textContent = confirmLabel;
+      resetTimer = setTimeout(function () {
+        armed = false;
+        btn.textContent = originalLabel;
+      }, 3000);
+    } else {
+      clearTimeout(resetTimer);
+      armed = false;
+      btn.textContent = originalLabel;
+      onConfirm();
+    }
+  });
+}
+
+armDangerButton(document.getElementById('clear-today'), 'Tap again to confirm', function () {
+  const dateKey = document.getElementById('date-input').value || todayStr();
+  delete log[dateKey];
+  saveLogToStorage();
+  renderPrayerRows();
+  renderTotals();
+});
+
+armDangerButton(document.getElementById('clear-history'), 'Tap again to confirm', function () {
+  log = {};
+  saveLogToStorage();
+  renderPrayerRows();
+  renderTotals();
+});
+
+armDangerButton(document.getElementById('clear-paid'), 'Tap again to confirm', function () {
+  paid = {};
+  savePaidToStorage();
+  renderTotals();
+});
+
+document.getElementById('save-log').addEventListener('click', function () {
+  const dateKey = document.getElementById('date-input').value || todayStr();
+  const dayLog = {};
+  PRAYERS.forEach(p => {
+    const val = document.getElementById('select-' + p).value;
+    if (val) dayLog[p] = val;
+  });
+  log[dateKey] = dayLog;
+  saveLogToStorage();
+  renderTotals();
+  const msg = document.getElementById('save-msg');
+  msg.style.display = 'block';
+  setTimeout(() => { msg.style.display = 'none'; }, 1500);
+});
+
+loadData();
+if (!names || names.length === 0) {
+  showSetup();
+} else {
+  showMain();
+}
+</script>
+
+</body>
+</html>
